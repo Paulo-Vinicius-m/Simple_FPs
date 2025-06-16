@@ -142,6 +142,12 @@ export class FPAnalysis{
      * @param name - The name of the Logical File to remove.
      */
     public removeLF(name: string): void {
+        // Goes through all the Elementary Processes and removes any reference to the LF being removed
+        this.elementaryProcesses.forEach(ep => {
+            ep.referencedLFs = ep.referencedLFs.filter(lf => lf.name !== name);
+        });
+
+        // Removes the Logical File from the logicalFiles array
         this.logicalFiles = this.logicalFiles.filter(lf => lf.name !== name);
     }
 
@@ -156,6 +162,7 @@ export class FPAnalysis{
     /**
      * Adds an Elementary Process (EP) to the analysis.
      * @param description - A description of the Elementary Process.
+     * @param type - The type of the Elementary Process (External Input, External Output, or External Inquiry).
      * @param logicalFiles - An array of Logical Files referenced by the Elementary Process.
      */
     public addEP(description: string, type: EPType, logicalFiles: LogicalFile[]): void{
@@ -178,7 +185,7 @@ export class FPAnalysis{
                 }
             }
         }
-        
+
         this.elementaryProcesses.push({
             description: description,
             type: type,
