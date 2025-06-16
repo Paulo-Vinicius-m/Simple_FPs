@@ -1,27 +1,38 @@
-<template>
-  <img alt="Vue logo" src="./assets/logo.png">
-  <HelloWorld msg="Welcome to Your Vue.js + TypeScript App"/>
-</template>
-
 <script lang="ts">
-import { defineComponent } from 'vue';
-import HelloWorld from './components/HelloWorld.vue';
+import { defineComponent, ref } from 'vue';
+import LogicalFiles from './components/LogicalFiles.vue';
+import ElementaryProcesses from './components/ElementaryProcesses.vue';
+import { FPAnalysis, LogicalFile } from './assets/ts/LogicalFileFinder';
 
 export default defineComponent({
   name: 'App',
   components: {
-    HelloWorld
-  }
+    LogicalFiles,
+    ElementaryProcesses
+  },
+  setup(){
+    const fpAnalysis = new FPAnalysis();
+
+    return {
+      fpAnalysis
+    };
+  },
 });
 </script>
 
+<template>
+  <main>
+    <h1>Hey! I heard you need help with function points...</h1>
+    <h2>You've arrived in the right place.</h2>
+    
+    <h3>Page 1</h3>
+    <LogicalFiles :FPA="fpAnalysis"/>
+
+    <h3>Page 2</h3>
+    <!-- Function points of the logical files -->
+    <ElementaryProcesses :FPA="fpAnalysis"/>
+  </main>
+</template>
+
 <style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
-}
 </style>
