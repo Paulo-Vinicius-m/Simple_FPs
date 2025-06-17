@@ -151,6 +151,34 @@ export class FPAnalysis{
         this.logicalFiles = this.logicalFiles.filter(lf => lf.name !== name);
     }
 
+    
+    /**
+     * Removes an attribute from a Logical File (LF).
+     * @param lfName - The name of the Logical File from which the attribute will be removed.
+     * @param attributeName - The name of the attribute to be removed.
+     */
+    public removeAttributeFromLF(lfName: string, attributeName: string): void {
+        const lf = this.logicalFiles.find(lf => lf.name === lfName);
+
+        // Verify if the Logical File exists
+        if (!lf) {
+            console.error(`Logical File "${lfName}" not found. Cannot remove attribute.`);
+            return;
+        }
+
+        // Update the Elementary Processes to remove references to the attribute
+        this.elementaryProcesses.forEach(ep => {
+            ep.referencedLFs.forEach(refLF => {
+                if (refLF.name === lfName) {
+                    refLF.attributes = refLF.attributes.filter(attr => attr.name !== attributeName);
+                }
+            });
+        });
+
+        // Remove the attribute from the Logical File
+        lf.attributes = lf.attributes.filter(attr => attr.name !== attributeName);
+    }
+
     /**
      * Retrieves the list of Logical Files (LFs).
      * @returns An array of Logical Files.
