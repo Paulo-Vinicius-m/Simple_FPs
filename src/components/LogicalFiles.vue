@@ -509,7 +509,6 @@ export default defineComponent({
 }
 
 .sql-input {
-    width: 100%;
     padding: 12px;
     border: 2px solid var(--color-gray);
     border-radius: 6px;
