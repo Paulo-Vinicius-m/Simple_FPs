@@ -4,9 +4,9 @@
  * 
  * A Vue component for managing Logical Files in Function Point Analysis (FPA).
  * This component allows users to:
- * - Parse SQL scripts to extract logical files and their attributes
+ * - Parse SQL scripts to extract logical files and their Data Elements
  * - Add new logical files manually
- * - Add/remove attributes from existing logical files
+ * - Add/remove Data Elements from existing logical files
  * - View all logical files in a structured table format
  * 
  * @component
@@ -20,15 +20,8 @@
 -->
 <script lang="ts">
 import { defineComponent, ref, watch, computed, onMounted } from 'vue';
-import { FPAnalysis, type Attribute } from '../assets/ts/LogicalFileFinder';
+import { FPAnalysis, type DataElement } from '../assets/ts/LogicalFileFinder';
 
-/**
- * Interface for attribute input structure
- */
-interface AttributeInput {
-    name: string;
-    dtype: string;
-}
 
 /**
  * Interface for component props
@@ -74,14 +67,14 @@ export default defineComponent({
         /** Form data for creating new logical file */
         const newLogicalFileForm = ref<{
             name: string;
-            attribute: AttributeInput;
+            dataElements: DataElement[];
         }>({
             name: '',
-            attribute: { name: '', dtype: '' }
+            dataElements: [{ name: '', dtype: '' }]
         });
 
-        /** Input tracking for adding attributes to existing logical files */
-        const attributeInputs = ref<Record<string, AttributeInput>>({});
+        /** Input tracking for adding data elements to existing logical files */
+        const newDataElements = ref<Record<string, DataElement>>({});
 
         // ==========================================
         // COMPUTED PROPERTIES
@@ -102,13 +95,13 @@ export default defineComponent({
         // ==========================================
         
         /**
-         * Initializes attribute input refs for all logical files
+         * Initializes data element input refs for all logical files
          * Ensures each logical file has corresponding input fields
          */
-        const initializeAttributeInputs = (): void => {
+        const initializeDataElementInputs = (): void => {
             logicalFiles.value.forEach(lf => {
-                if (!attributeInputs.value[lf.name]) {
-                    attributeInputs.value[lf.name] = { name: '', dtype: '' };
+                if (!newDataElements.value[lf.name]) {
+                    newDataElements.value[lf.name] = { name: '', dtype: '' };
                 }
             });
         };
@@ -119,27 +112,26 @@ export default defineComponent({
          */
         const triggerUpdate = (): void => {
             forceUpdate.value++;
-            initializeAttributeInputs();
+            initializeDataElementInputs();
         };
 
         /**
          * Resets a form object to empty values
          * @param form - Form object to reset
          */
-        const resetForm = (form: { name: string; attribute: AttributeInput }): void => {
+        const resetForm = (form: { name: string; dataElements: DataElement[]}): void => {
             form.name = '';
-            form.attribute.name = '';
-            form.attribute.dtype = '';
+            form.dataElements = [{ name: '', dtype: '' }];
         };
 
         /**
-         * Clears attribute input for a specific logical file
+         * Clears data element input for a specific logical file
          * @param lfName - Name of the logical file
          */
-        const clearAttributeInput = (lfName: string): void => {
-            if (attributeInputs.value[lfName]) {
-                attributeInputs.value[lfName].name = '';
-                attributeInputs.value[lfName].dtype = '';
+        const clearDataElementInput = (lfName: string): void => {
+            if (newDataElements.value[lfName]) {
+                newDataElements.value[lfName].name = '';
+                newDataElements.value[lfName].dtype = '';
             }
         };
 
@@ -170,22 +162,22 @@ export default defineComponent({
         /**
          * Adds a new logical file to the FPA instance
          * @param name - Name of the logical file
-         * @param attributes - Array of attributes for the logical file
+         * @param dataElements - Array of data elements for the logical file
          */
-        const addLogicalFile = (name: string, attributes: Attribute[]): void => {
+        const addLogicalFile = (name: string, dataElements: DataElement[]): void => {
             if (!name.trim()) {
                 console.warn('Logical file name cannot be empty');
                 return;
             }
 
-            if (!attributes.length || !attributes[0]?.name?.trim() || !attributes[0]?.dtype?.trim()) {
-                console.warn('At least one valid attribute is required');
+            if (!dataElements.length || !dataElements[0]?.name?.trim() || !dataElements[0]?.dtype?.trim()) {
+                console.warn('At least one valid data element is required');
                 return;
             }
 
             try {
-                props.FPA.addLF(name.trim(), attributes);
-                attributeInputs.value[name] = { name: '', dtype: '' };
+                props.FPA.addLF(name.trim(), dataElements);
+                newDataElements.value[name] = { name: '', dtype: '' };
                 resetForm(newLogicalFileForm.value);
                 triggerUpdate();
                 emit('readSQL');
@@ -196,43 +188,43 @@ export default defineComponent({
         };
 
         /**
-         * Adds an attribute to an existing logical file
+         * Adds an Data Element to an existing logical file
          * @param lfName - Name of the logical file
-         * @param attribute - Attribute to add
+         * @param dataElement - Data element to add
          */
-        const addAttributeToLogicalFile = (lfName: string, attribute: AttributeInput): void => {
-            if (!attribute.name.trim() || !attribute.dtype.trim()) {
-                console.warn('Attribute name and type are required');
+        const addDataElementToLogicalFile = (lfName: string, dataElement: DataElement): void => {
+            if (!dataElement.name.trim() || !dataElement.dtype.trim()) {
+                console.warn('Data element name and type are required');
                 return;
             }
 
             try {
-                props.FPA.addAttributeToLF(lfName, {
-                    name: attribute.name.trim(),
-                    dtype: attribute.dtype.trim()
+                props.FPA.addDataElementToLF(lfName, {
+                    name: dataElement.name.trim(),
+                    dtype: dataElement.dtype.trim()
                 });
-                clearAttributeInput(lfName);
+                clearDataElementInput(lfName);
                 triggerUpdate();
                 emit('readSQL');
-                console.log(`Successfully added attribute ${attribute.name} to ${lfName}`);
+                console.log(`Successfully added data element ${dataElement.name} to ${lfName}`);
             } catch (error) {
-                console.error('Error adding attribute:', error);
+                console.error('Error adding data element:', error);
             }
         };
 
         /**
-         * Removes an attribute from a logical file
+         * Removes a data element from a logical file
          * @param lfName - Name of the logical file
-         * @param attributeName - Name of the attribute to remove
+         * @param dataElementName - Name of the data element to remove
          */
-        const removeAttributeFromLogicalFile = (lfName: string, attributeName: string): void => {
+        const removeDataElementFromLogicalFile = (lfName: string, dataElementName: string): void => {
             try {
-                props.FPA.removeAttributeFromLF(lfName, attributeName);
+                props.FPA.removeDataElementFromLF(lfName, dataElementName);
                 triggerUpdate();
                 emit('readSQL');
-                console.log(`Successfully removed attribute ${attributeName} from ${lfName}`);
+                console.log(`Successfully removed data element ${dataElementName} from ${lfName}`);
             } catch (error) {
-                console.error('Error removing attribute:', error);
+                console.error('Error removing data element:', error);
             }
         };
 
@@ -240,15 +232,17 @@ export default defineComponent({
          * Creates a new logical file from the form data
          */
         const createNewLogicalFile = (): void => {
-            const { name, attribute } = newLogicalFileForm.value;
+            const { name, dataElements } = newLogicalFileForm.value;
             
-            if (!name.trim() || !attribute.name.trim() || !attribute.dtype.trim()) {
-                console.warn('All fields are required to create a new logical file');
+            // Remove empty data elements
+            const filteredDataElements = dataElements.filter(de => de.name.trim() && de.dtype.trim()); // Filter out empty data elements
+            if (!name.trim() || !filteredDataElements.length) {
+                console.warn('Logical file name and at least one data element are required');
                 return;
             }
 
-            const attributes: Attribute[] = [{ ...attribute }];
-            addLogicalFile(name, attributes);
+            console.log(`Creating new logical file: ${name} with data elements:`, filteredDataElements);
+            addLogicalFile(name, filteredDataElements);
         };
 
         // ==========================================
@@ -267,7 +261,7 @@ export default defineComponent({
          * Component initialization
          */
         onMounted(() => {
-            initializeAttributeInputs();
+            initializeDataElementInputs();
         });
 
         // ==========================================
@@ -281,13 +275,13 @@ export default defineComponent({
             // Reactive state
             sqlInput,
             newLogicalFileForm,
-            attributeInputs,
+            newDataElements,
             
             // Methods
             parseSQL,
             createNewLogicalFile,
-            addAttributeToLogicalFile,
-            removeAttributeFromLogicalFile,
+            addDataElementToLogicalFile,
+            removeDataElementFromLogicalFile,
             
             // Utilities (exposed for template debugging)
             triggerUpdate
@@ -342,59 +336,59 @@ export default defineComponent({
                             </th>
                         </tr>
                         <tr>
-                            <th class="column-header">Attribute Name</th>
-                            <th class="column-header">Attribute Type</th>
+                            <th class="column-header">Data Element Name</th>
+                            <th class="column-header">Data Element Type</th>
                             <th class="column-header">Actions</th>
                         </tr>
                     </thead>
 
                     <!-- Table Body -->
                     <tbody>
-                        <!-- Existing Attributes -->
+                        <!-- Existing Data Elements -->
                         <tr 
-                            v-for="attribute in lf.attributes" 
-                            :key="attribute.name"
-                            class="attribute-row"
+                            v-for="dataElement in lf.dataElements" 
+                            :key="dataElement.name"
+                            class="dataElement-row"
                         >
-                            <td class="attribute-name">{{ attribute.name }}</td>
-                            <td class="attribute-type">{{ attribute.dtype }}</td>
-                            <td class="attribute-actions">
+                            <td class="dataElement-name">{{ dataElement.name }}</td>
+                            <td class="dataElement-type">{{ dataElement.dtype }}</td>
+                            <td class="dataElement-actions">
                                 <button 
-                                    @click="removeAttributeFromLogicalFile(lf.name, attribute.name)"
+                                    @click="removeDataElementFromLogicalFile(lf.name, dataElement.name)"
                                     class="danger-button small-button"
-                                    :title="`Remove ${attribute.name} from ${lf.name}`"
+                                    :title="`Remove ${dataElement.name} from ${lf.name}`"
                                 >
                                     Remove
                                 </button>
                             </td>
                         </tr>
 
-                        <!-- Add New Attribute Row -->
-                        <tr class="add-attribute-row">
+                        <!-- Add New Data Element Row -->
+                        <tr class="add-dataElement-row">
                             <td>
                                 <input 
-                                    v-model="attributeInputs[lf.name].name" 
+                                    v-model="newDataElements[lf.name].name" 
                                     type="text"
-                                    class="attribute-input"
-                                    placeholder="Attribute Name"
+                                    class="dataElement-input"
+                                    placeholder="Data Element Name"
                                     maxlength="50"
                                 />
                             </td>
                             <td>
                                 <input 
-                                    v-model="attributeInputs[lf.name].dtype"
+                                    v-model="newDataElements[lf.name].dtype"
                                     type="text" 
-                                    class="attribute-input"
-                                    placeholder="Attribute Type"
+                                    class="dataElement-input"
+                                    placeholder="Data Element Type"
                                     maxlength="30"
                                 />
                             </td>
                             <td>
                                 <button 
-                                    @click="addAttributeToLogicalFile(lf.name, attributeInputs[lf.name])"
+                                    @click="addDataElementToLogicalFile(lf.name, newDataElements[lf.name])"
                                     class="success-button small-button"
-                                    :disabled="!attributeInputs[lf.name]?.name?.trim() || !attributeInputs[lf.name]?.dtype?.trim()"
-                                    title="Add new attribute"
+                                    :disabled="!newDataElements[lf.name]?.name?.trim() || !newDataElements[lf.name]?.dtype?.trim()"
+                                    title="Add new data element"
                                 >
                                     Add
                                 </button>
@@ -408,57 +402,87 @@ export default defineComponent({
         <!-- Add New Logical File Section -->
         <section class="add-logical-file-section">
             <h2>Add New Logical File</h2>
-            <div class="new-lf-form">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="newLfName">Logical File Name:</label>
-                        <input 
-                            id="newLfName"
-                            v-model="newLogicalFileForm.name" 
-                            type="text"
-                            class="form-input"
-                            placeholder="Enter logical file name"
-                            maxlength="50"
-                        />
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="newAttributeName">First Attribute Name:</label>
-                        <input 
-                            id="newAttributeName"
-                            v-model="newLogicalFileForm.attribute.name" 
-                            type="text"
-                            class="form-input"
-                            placeholder="Enter attribute name"
-                            maxlength="50"
-                        />
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="newAttributeType">First Attribute Type:</label>
-                        <input 
-                            id="newAttributeType"
-                            v-model="newLogicalFileForm.attribute.dtype" 
-                            type="text"
-                            class="form-input"
-                            placeholder="Enter attribute type"
-                            maxlength="30"
-                        />
-                    </div>
-                </div>
-                
-                <div class="form-actions">
-                    <button 
-                        @click="createNewLogicalFile"
-                        class="primary-button"
-                        :disabled="!newLogicalFileForm.name.trim() || !newLogicalFileForm.attribute.name.trim() || !newLogicalFileForm.attribute.dtype.trim()"
-                    >
-                        Add Logical File
-                    </button>
-                </div>
+            <div class="form-actions">
+                <button 
+                    @click="createNewLogicalFile"
+                    class="primary-button"
+                    :disabled="!newLogicalFileForm.name.trim() || !newLogicalFileForm.dataElements[0].name.trim() || !newLogicalFileForm.dataElements[0].dtype.trim()"
+                >
+                    Add Logical File
+                </button>
             </div>
+           
+            <table 
+                class="logical-file-table"
+            >
+                <!-- Table Header -->
+                <thead>
+                    <tr>
+                        <th colspan="3" class="table-title">
+                            <input v-model="newLogicalFileForm.name" placeholder="Logical File Name">
+                        </th>
+                    </tr>
+                    <tr>
+                        <th class="column-header">Data Element Name</th>
+                        <th class="column-header">Data Element Type</th>
+                        <th class="column-header">Actions</th>
+                    </tr>
+                </thead>
+
+                <!-- Adding multiple data elements -->
+                <tbody>
+                    <!-- Existing Data Elements -->
+                    <tr
+                        class="data-element-row"
+                        v-for="(dataElement, index) in newLogicalFileForm.dataElements.slice(0, -1)"
+                        :key="index"
+                    >
+                        <td class="data-element-name">{{ dataElement.name }}</td>
+                        <td class="data-element-type">{{ dataElement.dtype }}</td>
+                        <td class="data-element-actions">
+                            <button 
+                                @click="newLogicalFileForm.dataElements.splice(index, 1)"
+                                class="danger-button small-button"
+                                :title="`Remove ${dataElement.name} from ${newLogicalFileForm.name}`"
+                            >
+                                Remove
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- Add New Data Element Row -->
+                    <tr class="add-data-element-row">
+                        <td>
+                            <input 
+                                v-model="newLogicalFileForm.dataElements[newLogicalFileForm.dataElements.length - 1].name" 
+                                type="text"
+                                class="dataElement-input"
+                                placeholder="Data Element Name"
+                                maxlength="50"
+                            />
+                        </td>
+                        <td>
+                            <input 
+                                v-model="newLogicalFileForm.dataElements[newLogicalFileForm.dataElements.length - 1].dtype"
+                                type="text" 
+                                class="dataElement-input"
+                                placeholder="Data Element Type"
+                                maxlength="30"
+                            />
+                        </td>
+                        <td>
+                            <button 
+                                @click="newLogicalFileForm.dataElements.push({ name: '', dtype: '' })"
+                                class="success-button small-button"
+                                :disabled="!newLogicalFileForm.dataElements[newLogicalFileForm.dataElements.length - 1]?.name?.trim() || !newLogicalFileForm.dataElements[newLogicalFileForm.dataElements.length - 1]?.dtype?.trim()"
+                                title="Add new data element"
+                            >
+                                Add
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
     </div>
 </template>
@@ -586,31 +610,31 @@ export default defineComponent({
     letter-spacing: 0.5px;
 }
 
-.attribute-row:hover {
+.dataElement-row:hover {
     background-color: #f8f9fa;
 }
 
-.attribute-name {
+.dataElement-name {
     font-family: 'Courier New', monospace;
     font-weight: 500;
 }
 
-.attribute-type {
+.dataElement-type {
     font-family: 'Courier New', monospace;
     color: #666;
     font-style: italic;
 }
 
-.attribute-actions {
+.dataElement-actions {
     text-align: center;
 }
 
-.add-attribute-row {
+.add-dataElement-row {
     background-color: #f0f8f0;
     border-top: 2px solid var(--color-green);
 }
 
-.attribute-input {
+.dataElement-input {
     width: 100%;
     padding: 8px;
     border: 1px solid #ddd;
@@ -619,7 +643,7 @@ export default defineComponent({
     transition: border-color 0.3s ease;
 }
 
-.attribute-input:focus {
+.dataElement-input:focus {
     outline: none;
     border-color: var(--color-green);
     box-shadow: 0 0 0 2px rgba(var(--color-green-rgb, 0, 128, 0), 0.1);
@@ -779,7 +803,7 @@ button:disabled {
         font-size: 0.8em;
     }
     
-    .attribute-input {
+    .dataElement-input {
         font-size: 12px;
     }
     
