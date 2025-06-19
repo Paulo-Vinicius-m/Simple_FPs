@@ -33,26 +33,26 @@ CREATE TABLE IF NOT EXISTS "Acao" (
 const logicalFiles = {};
 
 export enum EPType {
-    ExternalInput = "External Input",
-    ExternalOutput = "External Output",
-    ExternalInquiry = "External Inquiry"
+    ExternalInput = "EI",
+    ExternalOutput = "EO",
+    ExternalInquiry = "EQ"
 }
 
-export interface Attribute {
+export interface DataElement {
     name: string;
     dtype: string;
 }
 
 export interface LogicalFile{
     name: string;
-    attributes: Attribute[];
+    dataElements: DataElement[];
 }
 
 export interface ElementaryProcess {
+    id: string;
     description: string;
     type: EPType;
-    referencedLFs: LogicalFile[]; // TODO - Verificar se é necessário apentar para os atributos ou apenas os nomes.
-
+    dataElements: {name: string, logicalFileName: string}[];
 }
 
 // Regex para capturar tabelas
@@ -81,12 +81,12 @@ export class FPAnalysis{
             const tableContent = matchTable[2].toString();
             this.logicalFiles.push({
                 name: matchTable[1].toString(),
-                attributes: []
+                dataElements: []
             });
 
             let matchColumn;
             while ((matchColumn = columnRegex.exec(tableContent)) !== null) {
-                this.logicalFiles[this.logicalFiles.length - 1].attributes.push(
+                this.logicalFiles[this.logicalFiles.length - 1].dataElements.push(
                     {
                         name: matchColumn[1].toString(),
                         dtype: matchColumn[2].toString()
@@ -101,7 +101,7 @@ export class FPAnalysis{
      * @param name - The name of the Logical File.
      * @param attributes - An array of attributes for the Logical File.
      */
-    public addLF(name: string, attributes: Attribute[]): void {
+    public addLF(name: string, attributes: DataElement[]): void {
         // Verifica se já existe um LF com o mesmo nome
         if (this.logicalFiles.some(lf => lf.name === name)) {
             console.warn(`Logical File with name "${name}" already exists. Skipping addition.`);
@@ -110,31 +110,31 @@ export class FPAnalysis{
 
         this.logicalFiles.push({
             name: name,
-            attributes: attributes
+            dataElements: attributes
         });
     }
 
     /**
      * Adds an attribute to an existing Logical File (LF).
      * @param lfName - The name of the Logical File to which the attribute will be added.
-     * @param attribute - The attribute to be added.
+     * @param dataElement - The data element to be added.
      */
-    public addAttributeToLF(lfName: string, attribute: Attribute): void {
+    public addDataElementToLF(lfName: string, dataElement: DataElement): void {
         const lf = this.logicalFiles.find(lf => lf.name === lfName);
 
         // Verifica se o LF existe
         if (!lf) {
-            console.error(`Logical File "${lfName}" not found. Cannot add attribute.`);
+            console.error(`Logical File "${lfName}" not found. Cannot add data element.`);
             return;
         }
 
-        // Verifica se o atributo já existe
-        if (lf.attributes.some(attr => attr.name === attribute.name)) {
-            console.warn(`Attribute "${attribute.name}" already exists in Logical File "${lfName}". Skipping addition.`);
+        // Verifica se o data element já existe
+        if (lf.dataElements.some(attr => attr.name === dataElement.name)) {
+            console.warn(`Data Element "${dataElement.name}" already exists in Logical File "${lfName}". Skipping addition.`);
             return;
         }
 
-        lf.attributes.push(attribute);
+        lf.dataElements.push(dataElement);
     }
 
     /**
@@ -144,7 +144,7 @@ export class FPAnalysis{
     public removeLF(name: string): void {
         // Goes through all the Elementary Processes and removes any reference to the LF being removed
         this.elementaryProcesses.forEach(ep => {
-            ep.referencedLFs = ep.referencedLFs.filter(lf => lf.name !== name);
+            ep.dataElements = ep.dataElements.filter(lf => lf.name !== name);
         });
 
         // Removes the Logical File from the logicalFiles array
@@ -155,28 +155,26 @@ export class FPAnalysis{
     /**
      * Removes an attribute from a Logical File (LF).
      * @param lfName - The name of the Logical File from which the attribute will be removed.
-     * @param attributeName - The name of the attribute to be removed.
+     * @param dataElement - The name of the attribute to be removed.
      */
-    public removeAttributeFromLF(lfName: string, attributeName: string): void {
+    public removeDataElementFromLF(lfName: string, dataElement: string): void {
         const lf = this.logicalFiles.find(lf => lf.name === lfName);
 
         // Verify if the Logical File exists
         if (!lf) {
-            console.error(`Logical File "${lfName}" not found. Cannot remove attribute.`);
+            console.error(`Logical File "${lfName}" not found. Cannot remove data element.`);
             return;
         }
 
-        // Update the Elementary Processes to remove references to the attribute
+        // Update the Elementary Processes to remove references to the data element
         this.elementaryProcesses.forEach(ep => {
-            ep.referencedLFs.forEach(refLF => {
-                if (refLF.name === lfName) {
-                    refLF.attributes = refLF.attributes.filter(attr => attr.name !== attributeName);
-                }
+            ep.dataElements = ep.dataElements.filter(de => {
+                return !(de.logicalFileName === lfName && de.name === dataElement);
             });
         });
 
-        // Remove the attribute from the Logical File
-        lf.attributes = lf.attributes.filter(attr => attr.name !== attributeName);
+        // Remove the data element from the Logical File
+        lf.dataElements = lf.dataElements.filter(attr => attr.name !== dataElement);
     }
 
     /**
@@ -193,35 +191,106 @@ export class FPAnalysis{
      * @param type - The type of the Elementary Process (External Input, External Output, or External Inquiry).
      * @param logicalFiles - An array of Logical Files referenced by the Elementary Process.
      */
-    public addEP(description: string, type: EPType, logicalFiles: LogicalFile[]): void{
-        // Verify if there is already an Elementary Process with the same description
-        if (this.elementaryProcesses.some(ep => ep.description === description)) {
-            console.warn(`Elementary Process with description "${description}" already exists. Skipping addition.`);
-            return;
-        }
-
+    public addEP(description: string, type: EPType, dataElements: {name: string, logicalFileName: string}[]): void{
         // Verify if the referenced Logical Files and Attributes exist
-        for (const lf of logicalFiles) {
-            if (!this.logicalFiles.some(existingLF => existingLF.name === lf.name)) {
-                console.error(`Logical File "${lf.name}" referenced in Elementary Process "${description}" does not exist.`);
+        for (const {name, logicalFileName} of dataElements) {
+            const lf = this.logicalFiles.find(lf => lf.name === logicalFileName);
+
+            // Verify if the Logical File exists
+            if (!lf) {
+                console.error(`Logical File "${logicalFileName}" referenced in Elementary Process "${description}" does not exist.`);
                 return;
             }
-            for (const attr of lf.attributes) {
-                if (!this.logicalFiles.find(existingLF => existingLF.name === lf.name)?.attributes.some(existingAttr => existingAttr.name === attr.name)) {
-                    console.error(`Attribute "${attr.name}" in Logical File "${lf.name}" referenced in Elementary Process "${description}" does not exist.`);
+            // Verify if the Data Element exists in the Logical File
+            for (const DataElement of lf.dataElements) {
+                if (!lf.dataElements.some(existingDE => existingDE.name === DataElement.name)) {
+                    console.error(`Data Element "${DataElement.name}" in Logical File "${logicalFileName}" referenced in Elementary Process "${description}" does not exist.`);
                     return;
                 }
             }
         }
 
+        const newId = `${type}_${this.elementaryProcesses.filter(ep => ep.type === type).length + 1}`;
+
         this.elementaryProcesses.push({
+            id: newId,
             description: description,
             type: type,
-            referencedLFs: logicalFiles
+            dataElements: dataElements
         });
     }
-    /*
-    public removeEP(){};
 
-    public evaluateFPs(){};*/
+    /**
+     * Retrieves the list of Elementary Processes (EPs).
+     * @returns An array of Elementary Processes.
+     */
+    public getEPs(){
+        return this.elementaryProcesses;
+    }
+
+    /**
+     * Removes an Elementary Process (EP) from the analysis.
+     * @param description - The description of the Elementary Process to remove.
+     */
+    public removeEP(id: string): void {
+        // Remove the Elementary Process from the elementaryProcesses array
+        this.elementaryProcesses = this.elementaryProcesses.filter(ep => ep.id !== id);
+    }
+
+    /**
+     * Removes Data Element Types (DETs) from an Elementary Process (EP).
+     * @param epId - The ID of the Elementary Process.
+     * @param logicalFileName - The name of the Logical File.
+     * @param dataElementName - The name of the attribute to remove.
+     */
+    public removeDETsFromEP(epId: string, logicalFileName: string, dataElementName: string): void {
+        const ep = this.elementaryProcesses.find(ep => ep.id === epId);
+
+        // Verify if the Elementary Process exists
+        if (!ep) {
+            console.error(`Elementary Process "${epId}" not found. Cannot remove DET.`);
+            return;
+        }
+
+        // Remove the Data Element Type (DET) from the Elementary Process
+        ep.dataElements = ep.dataElements.filter(de => !(de.logicalFileName === logicalFileName && de.name === dataElementName));
+    }
+
+    /**
+     * Adds a Data Element Type (DET) to an Elementary Process (EP).
+     * @param epId - The ID of the Elementary Process.
+     * @param dataElement - The data element to add.
+     */
+    public addDETToEP(epId: string, dataElement: {name: string, logicalFileName: string}): void {
+        const ep = this.elementaryProcesses.find(ep => ep.id === epId);
+
+        // Verify if the Elementary Process exists
+        if (!ep) {
+            console.error(`Elementary Process "${epId}" not found. Cannot add DET.`);
+            return;
+        }
+
+        // Verify if the referenced Logical File and Attribute exist
+        const lf = this.logicalFiles.find(lf => lf.name === dataElement.logicalFileName);
+        if (!lf) {
+            console.error(`Logical File "${dataElement.logicalFileName}" referenced in Elementary Process "${ep.description}" does not exist.`);
+            return;
+        }
+        if (!lf.dataElements.some(existingDE => existingDE.name === dataElement.name)) {
+            console.error(`Data Element "${dataElement.name}" in Logical File "${dataElement.logicalFileName}" referenced in Elementary Process "${ep.description}" does not exist.`);
+            return;
+        }
+
+        // Verify if the DET already exists in the EP
+        if (ep.dataElements.some(det => det.logicalFileName === dataElement.logicalFileName && det.name === dataElement.name)) {
+            console.warn(`DET "${dataElement.name}" from "${dataElement.logicalFileName}" already exists in EP "${epId}". Skipping addition.`);
+            return;
+        }
+
+        ep.dataElements.push(dataElement);
+    }
+
+    /*
+    public evaluateFPs(){};
+    */
 }

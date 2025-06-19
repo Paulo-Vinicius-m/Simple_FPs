@@ -17,6 +17,11 @@
         @readSQL="handleLogicalFilesUpdate" 
       />
 
+      <ElementaryProcesses 
+        :FPA="fpaInstance" 
+        @readSQL="handleLogicalFilesUpdate"
+      />
+
       <!-- Debug Information (Remove in production) -->
       <section v-if="showDebugInfo" class="debug-section">
         <h2>Debug Information</h2>
@@ -50,12 +55,14 @@
 <script lang="ts">
 import { defineComponent, ref, computed, onMounted, watch } from 'vue';
 import LogicalFiles from './components/LogicalFiles.vue';
+import ElementaryProcesses from './components/ElementaryProcesses.vue';
 import { FPAnalysis } from './assets/ts/LogicalFileFinder';
 
 export default defineComponent({
   name: 'App',
   components: {
-    LogicalFiles
+    LogicalFiles,
+    ElementaryProcesses
   },
   setup() {
     // Initialize FPA instance
@@ -73,7 +80,7 @@ export default defineComponent({
 
     const totalAttributes = computed(() => {
       return currentLogicalFiles.value.reduce((total, lf) => {
-        return total + lf.attributes.length;
+        return total + lf.dataElements.length;
       }, 0);
     });
 
