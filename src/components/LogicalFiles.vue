@@ -20,7 +20,7 @@
 -->
 <script lang="ts">
 import { defineComponent, ref, watch, computed, onMounted } from 'vue';
-import { FPAnalysis, type DataElement } from '../assets/ts/LogicalFileFinder';
+import { FPAnalysis, type DataElement } from '../assets/ts/FunctionPointAnalysis';
 
 
 /**

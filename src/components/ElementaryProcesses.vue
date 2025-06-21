@@ -1,6 +1,6 @@
 <script lang="ts">
 import { computed, defineComponent, onUpdated, ref } from 'vue';
-import { FPAnalysis, EPType, LogicalFile } from '../assets/ts/LogicalFileFinder';
+import { FPAnalysis, EPType, LogicalFile } from '../assets/ts/FunctionPointAnalysis';
 
 export default defineComponent({
     name: 'ElementaryProcesses',

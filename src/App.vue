@@ -56,7 +56,7 @@
 import { defineComponent, ref, computed, onMounted, watch } from 'vue';
 import LogicalFiles from './components/LogicalFiles.vue';
 import ElementaryProcesses from './components/ElementaryProcesses.vue';
-import { FPAnalysis } from './assets/ts/LogicalFileFinder';
+import { FPAnalysis } from './assets/ts/FunctionPointAnalysis';
 
 export default defineComponent({
   name: 'App',

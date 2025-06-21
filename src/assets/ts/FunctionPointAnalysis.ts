@@ -30,7 +30,6 @@ CREATE TABLE IF NOT EXISTS "Acao" (
     ON UPDATE NO ACTION ON DELETE NO ACTION
 );
 `;
-const logicalFiles = {};
 
 export enum EPType {
     ExternalInput = "EI",
