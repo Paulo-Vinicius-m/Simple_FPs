@@ -68,9 +68,11 @@ export default defineComponent({
         const newLogicalFileForm = ref<{
             name: string;
             dataElements: DataElement[];
+            description?: string;
         }>({
             name: '',
-            dataElements: [{ name: '', dtype: '' }]
+            dataElements: [{ name: '', dtype: '' }],
+            description: ''
         });
 
         /** Input tracking for adding data elements to existing logical files */
@@ -163,8 +165,9 @@ export default defineComponent({
          * Adds a new logical file to the FPA instance
          * @param name - Name of the logical file
          * @param dataElements - Array of data elements for the logical file
+         * @param description - Optional description for the logical file
          */
-        const addLogicalFile = (name: string, dataElements: DataElement[]): void => {
+        const addLogicalFile = (name: string, dataElements: DataElement[], description?: string): void => {
             if (!name.trim()) {
                 console.warn('Logical file name cannot be empty');
                 return;
@@ -176,7 +179,7 @@ export default defineComponent({
             }
 
             try {
-                props.FPA.addLF(name.trim(), dataElements);
+                props.FPA.addLF(name.trim(), dataElements, description?.trim() || undefined);
                 newDataElements.value[name] = { name: '', dtype: '' };
                 resetForm(newLogicalFileForm.value);
                 triggerUpdate();
@@ -232,8 +235,7 @@ export default defineComponent({
          * Creates a new logical file from the form data
          */
         const createNewLogicalFile = (): void => {
-            const { name, dataElements } = newLogicalFileForm.value;
-            
+            const { name, dataElements, description } = newLogicalFileForm.value;
             // Remove empty data elements
             const filteredDataElements = dataElements.filter(de => de.name.trim() && de.dtype.trim()); // Filter out empty data elements
             if (!name.trim() || !filteredDataElements.length) {
@@ -242,7 +244,7 @@ export default defineComponent({
             }
 
             console.log(`Creating new logical file: ${name} with data elements:`, filteredDataElements);
-            addLogicalFile(name, filteredDataElements);
+            addLogicalFile(name, filteredDataElements, description);
         };
 
         // ==========================================
@@ -315,12 +317,10 @@ export default defineComponent({
         <!-- Logical Files Display Section -->
         <section class="logical-files-section">
             <h2>Logical Files</h2>
-            
             <!-- Display message when no logical files exist -->
             <div v-if="!logicalFiles.length" class="no-files-message">
                 <p>No logical files found. Parse SQL code or add files manually.</p>
             </div>
-
             <!-- Logical Files Tables -->
             <div v-else class="logical-files-grid">
                 <table 
@@ -334,6 +334,11 @@ export default defineComponent({
                             <th colspan="3" class="table-title">
                                 {{ lf.name }}
                             </th>
+                        </tr>
+                        <tr v-if="lf.description">
+                            <td colspan="3" class="lf-description-cell">
+                                <em>{{ lf.description }}</em>
+                            </td>
                         </tr>
                         <tr>
                             <th class="column-header">Data Element Name</th>
@@ -421,6 +426,11 @@ export default defineComponent({
                         <th colspan="3" class="table-title">
                             <input v-model="newLogicalFileForm.name" placeholder="Logical File Name">
                         </th>
+                    </tr>
+                    <tr>
+                        <td colspan="3" class="lf-description-cell">
+                            <input v-model="newLogicalFileForm.description" placeholder="Description (optional)" />
+                        </td>
                     </tr>
                     <tr>
                         <th class="column-header">Data Element Name</th>
@@ -836,5 +846,14 @@ button:disabled {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+}
+
+.lf-description-cell {
+    background-color: #f7f7e6;
+    color: #666;
+    font-size: 1em;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    text-align: left;
 }
 </style>

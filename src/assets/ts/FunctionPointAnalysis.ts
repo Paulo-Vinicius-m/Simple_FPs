@@ -45,6 +45,7 @@ export interface DataElement {
 export interface LogicalFile{
     name: string;
     dataElements: DataElement[];
+    description?: string;
 }
 
 export interface ElementaryProcess {
@@ -99,8 +100,9 @@ export class FPAnalysis{
      * Adds a Logical File (LF) to the analysis.
      * @param name - The name of the Logical File.
      * @param attributes - An array of attributes for the Logical File.
+     * @param description - (Optional) Description for the Logical File.
      */
-    public addLF(name: string, attributes: DataElement[]): void {
+    public addLF(name: string, attributes: DataElement[], description?: string): void {
         // Verifica se já existe um LF com o mesmo nome
         if (this.logicalFiles.some(lf => lf.name === name)) {
             console.warn(`Logical File with name "${name}" already exists. Skipping addition.`);
@@ -109,8 +111,23 @@ export class FPAnalysis{
 
         this.logicalFiles.push({
             name: name,
-            dataElements: attributes
+            dataElements: attributes,
+            description: description
         });
+    }
+
+    /**
+     * Adds or updates the description of an existing Logical File (LF).
+     * @param lfName - The name of the Logical File.
+     * @param description - The description to set.
+     */
+    public addDescriptionToLF(lfName: string, description: string): void {
+        const lf = this.logicalFiles.find(lf => lf.name === lfName);
+        if (!lf) {
+            console.error(`Logical File "${lfName}" not found. Cannot add description.`);
+            return;
+        }
+        lf.description = description;
     }
 
     /**
