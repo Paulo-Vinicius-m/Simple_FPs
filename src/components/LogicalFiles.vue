@@ -232,6 +232,21 @@ export default defineComponent({
         };
 
         /**
+         * Removes a logical file from the FPA instance
+         * @param lfName - Name of the logical file to remove
+         */
+        const removeLogicalFile = (lfName: string): void => {
+            try {
+                props.FPA.removeLF(lfName);
+                triggerUpdate();
+                emit('readSQL');
+                console.log(`Successfully removed logical file: ${lfName}`);
+            } catch (error) {
+                console.error('Error removing logical file:', error);
+            }
+        };
+
+        /**
          * Creates a new logical file from the form data
          */
         const createNewLogicalFile = (): void => {
@@ -284,6 +299,7 @@ export default defineComponent({
             createNewLogicalFile,
             addDataElementToLogicalFile,
             removeDataElementFromLogicalFile,
+            removeLogicalFile,
             
             // Utilities (exposed for template debugging)
             triggerUpdate
@@ -333,6 +349,15 @@ export default defineComponent({
                         <tr>
                             <th colspan="3" class="table-title">
                                 {{ lf.name }}
+                            </th>
+                            <th colspan="1" class="table-title">
+                                <button 
+                                    @click="removeLogicalFile(lf.name)"
+                                    class="danger-button small-button"
+                                    :title="`Remove ${lf.name}`"
+                                >
+                                    Remove
+                                </button>
                             </th>
                         </tr>
                         <tr v-if="lf.description">
