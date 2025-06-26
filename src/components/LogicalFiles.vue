@@ -12,31 +12,16 @@
  * @component
  * @example
  * <LogicalFiles 
- *   :FPA="fpaInstance" 
- *   :refreshTrigger="refreshCounter"
- *   @readSQL="handleSQLRead" 
+ *    :FPA="fpaInstance" 
+ *    :triggerRefresh="triggerRefresh"
+ *    @refreshLFs="refreshLFs" 
  * />
  */
 -->
 <script lang="ts">
-import { defineComponent, ref, watch, computed, onMounted } from 'vue';
+import { defineComponent, ref, watch, computed, onMounted, triggerRef } from 'vue';
 import { FPAnalysis, type DataElement, LFType } from '../assets/ts/FunctionPointAnalysis';
 
-
-/**
- * Interface for component props
- */
-interface Props {
-    FPA: FPAnalysis;
-    refreshTrigger: number;
-}
-
-/**
- * Interface for component emits
- */
-interface Emits {
-    readSQL: [];
-}
 
 export default defineComponent({
     name: 'LogicalFiles',
@@ -46,14 +31,15 @@ export default defineComponent({
             type: FPAnalysis,
             required: true
         },
-        /** Trigger value to force component refresh from parent */
-        refreshTrigger: {
+        triggerRefresh: {
             type: Number,
-            default: 0
+            required: false,
+            default: 0 // Default value for reactivity
         }
     },
-    emits: ['readSQL'],
-    setup(props: Props, { emit }) {
+    emits: ['refreshLFs'],
+    
+    setup(props: {FPA: FPAnalysis; triggerRefresh: number}, { emit }) {
         // ==========================================
         // REACTIVE STATE
         // ==========================================
@@ -115,10 +101,12 @@ export default defineComponent({
         /**
          * Triggers component reactivity and initializes inputs
          * Used after data changes to ensure UI updates
+         * This function is called whenever logical files are updated
          */
-        const triggerUpdate = (): void => {
+        const outdatedLFs = (): void => {
             forceUpdate.value++;
             initializeDataElementInputs();
+            emit('refreshLFs');
         };
 
         /**
@@ -148,8 +136,7 @@ export default defineComponent({
 
             try {
                 props.FPA.readSQL(sqlInput.value);
-                triggerUpdate();
-                emit('readSQL');
+                outdatedLFs();
                 console.log('Successfully parsed SQL and found logical files:', logicalFiles.value);
             } catch (error) {
                 console.error('Error parsing SQL:', error);
@@ -159,7 +146,7 @@ export default defineComponent({
         /**
          * Adds a new logical file to the FPA instance
          * @param name - Name of the logical file
-         * @param type - Type of the logical file (ILF, ELF or RET)
+         * @param type - Type of the logical file (ILF, EIF or RET)
          * @param dataElements - Array of data elements for the logical file
          * @param description - Optional description for the logical file
          */
@@ -204,8 +191,7 @@ export default defineComponent({
                     parentName: ''
                 };
 
-                triggerUpdate();
-                emit('readSQL');
+                outdatedLFs();
                 console.log(`Successfully added logical file: ${name}`);
             } catch (error) {
                 console.error('Error adding logical file:', error);
@@ -229,8 +215,7 @@ export default defineComponent({
                     dtype: dataElement.dtype.trim()
                 });
                 clearDataElementInput(lfName);
-                triggerUpdate();
-                emit('readSQL');
+                outdatedLFs();
                 console.log(`Successfully added data element ${dataElement.name} to ${lfName}`);
             } catch (error) {
                 console.error('Error adding data element:', error);
@@ -245,8 +230,7 @@ export default defineComponent({
         const removeDataElementFromLogicalFile = (lfName: string, dataElementName: string): void => {
             try {
                 props.FPA.removeDataElementFromLF(lfName, dataElementName);
-                triggerUpdate();
-                emit('readSQL');
+                outdatedLFs();
                 console.log(`Successfully removed data element ${dataElementName} from ${lfName}`);
             } catch (error) {
                 console.error('Error removing data element:', error);
@@ -260,8 +244,7 @@ export default defineComponent({
         const removeLogicalFile = (lfName: string): void => {
             try {
                 props.FPA.removeLF(lfName);
-                triggerUpdate();
-                emit('readSQL');
+                outdatedLFs();
                 console.log(`Successfully removed logical file: ${lfName}`);
             } catch (error) {
                 console.error('Error removing logical file:', error);
@@ -296,8 +279,8 @@ export default defineComponent({
          * Watches for changes in refreshTrigger prop
          * Triggers update when parent component requests refresh
          */
-        watch(() => props.refreshTrigger, () => {
-            triggerUpdate();
+        watch(() => props.triggerRefresh, () => {
+            outdatedLFs();
         });
 
         /**
@@ -328,7 +311,7 @@ export default defineComponent({
             removeLogicalFile,
             
             // Utilities (exposed for template debugging)
-            triggerUpdate,
+            outdatedLFs,
 
             // Form Options
             LFType: LFType,
