@@ -20,7 +20,7 @@
 -->
 <script lang="ts">
 import { defineComponent, ref, watch, computed, onMounted } from 'vue';
-import { FPAnalysis, type DataElement } from '../assets/ts/FunctionPointAnalysis';
+import { FPAnalysis, type DataElement, LFType } from '../assets/ts/FunctionPointAnalysis';
 
 
 /**
@@ -67,12 +67,16 @@ export default defineComponent({
         /** Form data for creating new logical file */
         const newLogicalFileForm = ref<{
             name: string;
+            type: LFType; // Optional type, can be set later
             dataElements: DataElement[];
             description?: string;
+            parentName?: string; // Optional parent name for RET type
         }>({
             name: '',
+            type: LFType.InternalLogicalFile,
             dataElements: [{ name: '', dtype: '' }],
-            description: ''
+            description: '',
+            parentName: ''
         });
 
         /** Input tracking for adding data elements to existing logical files */
@@ -118,15 +122,6 @@ export default defineComponent({
         };
 
         /**
-         * Resets a form object to empty values
-         * @param form - Form object to reset
-         */
-        const resetForm = (form: { name: string; dataElements: DataElement[]}): void => {
-            form.name = '';
-            form.dataElements = [{ name: '', dtype: '' }];
-        };
-
-        /**
          * Clears data element input for a specific logical file
          * @param lfName - Name of the logical file
          */
@@ -164,10 +159,11 @@ export default defineComponent({
         /**
          * Adds a new logical file to the FPA instance
          * @param name - Name of the logical file
+         * @param type - Type of the logical file (ILF, ELF or RET)
          * @param dataElements - Array of data elements for the logical file
          * @param description - Optional description for the logical file
          */
-        const addLogicalFile = (name: string, dataElements: DataElement[], description?: string): void => {
+        const addLogicalFile = (name: string, type: LFType, dataElements: DataElement[], description?: string, parentName?: string): void => {
             if (!name.trim()) {
                 console.warn('Logical file name cannot be empty');
                 return;
@@ -178,10 +174,36 @@ export default defineComponent({
                 return;
             }
 
+            if (type === LFType.RecordElementType) {
+                if (!parentName?.trim()) {
+                    console.warn('Parent logical file name is required for Record Element Type');
+                    return;
+                }
+
+                if (!props.FPA.getLFs().some(lf => lf.name === parentName.trim())) {
+                    console.warn(`Parent logical file "${parentName}" does not exist`);
+                    return;
+                }
+            }
+
+            if (props.FPA.getLFs().some(lf => lf.name === name)) {
+                console.warn(`Logical file with name "${name}" already exists`);
+                return;
+            }
+
             try {
-                props.FPA.addLF(name.trim(), dataElements, description?.trim() || undefined);
+                props.FPA.addLF(name.trim(), type, dataElements, description?.trim() || undefined, parentName?.trim() || undefined); // Add logical file to FPA instance
+                
+                // Reset form state after successful addition
                 newDataElements.value[name] = { name: '', dtype: '' };
-                resetForm(newLogicalFileForm.value);
+                newLogicalFileForm.value = {
+                    name: '',
+                    type: LFType.InternalLogicalFile,
+                    dataElements: [{ name: '', dtype: '' }],
+                    description: '',
+                    parentName: ''
+                };
+
                 triggerUpdate();
                 emit('readSQL');
                 console.log(`Successfully added logical file: ${name}`);
@@ -250,16 +272,20 @@ export default defineComponent({
          * Creates a new logical file from the form data
          */
         const createNewLogicalFile = (): void => {
-            const { name, dataElements, description } = newLogicalFileForm.value;
+            const { name, type, dataElements, description, parentName } = newLogicalFileForm.value;
             // Remove empty data elements
             const filteredDataElements = dataElements.filter(de => de.name.trim() && de.dtype.trim()); // Filter out empty data elements
             if (!name.trim() || !filteredDataElements.length) {
                 console.warn('Logical file name and at least one data element are required');
                 return;
             }
+            if (type === LFType.RecordElementType && !parentName?.trim()) {
+                console.warn('Parent logical file name is required for Record Element Type');
+                return;
+            }
 
             console.log(`Creating new logical file: ${name} with data elements:`, filteredDataElements);
-            addLogicalFile(name, filteredDataElements, description);
+            addLogicalFile(name, type, filteredDataElements, description, parentName);
         };
 
         // ==========================================
@@ -302,7 +328,10 @@ export default defineComponent({
             removeLogicalFile,
             
             // Utilities (exposed for template debugging)
-            triggerUpdate
+            triggerUpdate,
+
+            // Form Options
+            LFType: LFType,
         };
     },
 });
@@ -347,7 +376,13 @@ export default defineComponent({
                     <!-- Table Header -->
                     <thead>
                         <tr>
-                            <th colspan="3" class="table-title">
+                            <th colspan="2" class="table-title">
+                                <button 
+                                    class="alert-button small-button"
+                                    :title="`Remove ${lf.name}`"
+                                >
+                                    {{ lf.type }}
+                                </button>
                                 {{ lf.name }}
                             </th>
                             <th colspan="1" class="table-title">
@@ -442,19 +477,46 @@ export default defineComponent({
                 </button>
             </div>
            
-            <table 
-                class="logical-file-table"
-            >
+            <table  class="logical-file-table">
                 <!-- Table Header -->
                 <thead>
                     <tr>
                         <th colspan="3" class="table-title">
-                            <input v-model="newLogicalFileForm.name" placeholder="Logical File Name">
+                            <select 
+                                v-model="newLogicalFileForm.type" 
+                                class="form-input"
+                                style="margin-right: 1%;"
+                                title="Select Logical File Type"
+                            >
+                                <option 
+                                    v-for="type in Object.values(LFType)" :key="type" :value="type"
+                                    >
+                                    {{ type }}
+                                </option>
+                            </select>
+                            <input
+                                type="text" 
+                                class="form-input"
+                                id="parentName"
+                                v-model="newLogicalFileForm.parentName" 
+                                placeholder="Parent Logical File Name"
+                                v-if="newLogicalFileForm.type === LFType.RecordElementType"
+                            >
+                            <input
+                                type="text"
+                                class="form-input"
+                                v-model="newLogicalFileForm.name" 
+                                placeholder="Logical File Name"
+                            >
                         </th>
                     </tr>
                     <tr>
                         <td colspan="3" class="lf-description-cell">
-                            <input v-model="newLogicalFileForm.description" placeholder="Description (optional)" />
+                            <input 
+                                class="form-input"
+                                v-model="newLogicalFileForm.description" 
+                                placeholder="Description (optional)" 
+                            />
                         </td>
                     </tr>
                     <tr>
@@ -745,7 +807,8 @@ export default defineComponent({
 
 .primary-button,
 .success-button,
-.danger-button {
+.danger-button,
+.alert-button {
     padding: 10px 20px;
     border: none;
     border-radius: 5px;
@@ -786,6 +849,16 @@ export default defineComponent({
 
 .danger-button:hover:not(:disabled) {
     background: linear-gradient(135deg, #e74c3c, #dc3545);
+    transform: translateY(-1px);
+}
+
+.alert-button {
+    background: linear-gradient(135deg, #e0aa09, #ffca2c);
+    color: white;
+}
+
+.alert-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ffca2c, #e0aa09);
     transform: translateY(-1px);
 }
 
@@ -844,7 +917,8 @@ button:disabled {
     
     .primary-button,
     .success-button,
-    .danger-button {
+    .danger-button,
+    .alert-button {
         padding: 8px 16px;
         font-size: 0.8em;
     }

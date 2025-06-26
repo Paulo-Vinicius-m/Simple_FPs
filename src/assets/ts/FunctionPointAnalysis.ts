@@ -37,13 +37,22 @@ export enum EPType {
     ExternalInquiry = "EQ"
 }
 
+export enum LFType {
+    InternalLogicalFile = "ILF",
+    ExternalInterfaceFile = "EIF",
+    RecordElementType = "RET"
+}
+
 export interface DataElement {
     name: string;
     dtype: string;
 }
 
+
 export interface LogicalFile{
     name: string;
+    type: LFType;
+    parentName?: string; // if it is a Record Element Type (RET), it needs to have a parent Logical File
     dataElements: DataElement[];
     description?: string;
 }
@@ -81,6 +90,7 @@ export class FPAnalysis{
             const tableContent = matchTable[2].toString();
             this.logicalFiles.push({
                 name: matchTable[1].toString(),
+                type: LFType.InternalLogicalFile, // Default type for parsed tables
                 dataElements: []
             });
 
@@ -99,10 +109,11 @@ export class FPAnalysis{
     /**
      * Adds a Logical File (LF) to the analysis.
      * @param name - The name of the Logical File.
+     * @param type - The type of the Logical File (Internal Logical File, External Interface File, or Record Element Type).
      * @param attributes - An array of attributes for the Logical File.
      * @param description - (Optional) Description for the Logical File.
      */
-    public addLF(name: string, attributes: DataElement[], description?: string): void {
+    public addLF(name: string, type: LFType, attributes: DataElement[], description?: string, parentName?: string): void {
         // Verifica se já existe um LF com o mesmo nome
         if (this.logicalFiles.some(lf => lf.name === name)) {
             console.warn(`Logical File with name "${name}" already exists. Skipping addition.`);
@@ -111,8 +122,10 @@ export class FPAnalysis{
 
         this.logicalFiles.push({
             name: name,
+            type: type,
             dataElements: attributes,
-            description: description
+            description: description,
+            parentName: parentName
         });
     }
 
@@ -162,6 +175,9 @@ export class FPAnalysis{
         this.elementaryProcesses.forEach(ep => {
             ep.dataElements = ep.dataElements.filter(lf => lf.name !== name);
         });
+
+        // Goes through all the Logical Files and removes all the record element types (RET) that reference the LF being removed
+        this.logicalFiles = this.logicalFiles.filter(lf => (lf.type !== LFType.RecordElementType && lf.parentName !== name));
 
         // Removes the Logical File from the logicalFiles array
         this.logicalFiles = this.logicalFiles.filter(lf => lf.name !== name);
