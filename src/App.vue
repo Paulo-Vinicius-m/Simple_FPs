@@ -1,7 +1,3 @@
-<!--
-  Example usage of the refactored LogicalFiles component
-  This file demonstrates best practices for integrating the component
--->
 <template>
   <div id="app">
     <header class="app-header">
