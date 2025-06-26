@@ -13,13 +13,13 @@
       <!-- LogicalFiles Component Usage -->
       <LogicalFiles 
         :FPA="fpaInstance" 
-        :refreshTrigger="refreshCounter"
-        @readSQL="handleLogicalFilesUpdate" 
+        @refreshLFs="handleLogicalFilesUpdate" 
       />
 
       <ElementaryProcesses 
         :FPA="fpaInstance" 
-        @readSQL="handleLogicalFilesUpdate"
+        :triggerRefresh="refreshLFs"
+        @refreshLFs="handleLogicalFilesUpdate"
       />
 
       <!-- Debug Information (Remove in production) -->
@@ -32,7 +32,7 @@
         <details>
           <summary>Component State</summary>
           <ul>
-            <li>Refresh Counter: {{ refreshCounter }}</li>
+            <li>Refresh Counter: {{ refreshLFs }}</li>
             <li>Last Update: {{ lastUpdateTime }}</li>
             <li>Total Attributes: {{ totalAttributes }}</li>
           </ul>
@@ -56,20 +56,22 @@
 import { defineComponent, ref, computed, onMounted, watch } from 'vue';
 import LogicalFiles from './components/LogicalFiles.vue';
 import ElementaryProcesses from './components/ElementaryProcesses.vue';
+import EndOfAnalysis from './components/EndOfAnalysis.vue';
 import { FPAnalysis } from './assets/ts/FunctionPointAnalysis';
 
 export default defineComponent({
   name: 'App',
   components: {
     LogicalFiles,
-    ElementaryProcesses
+    ElementaryProcesses,
+    EndOfAnalysis
   },
   setup() {
     // Initialize FPA instance
     const fpaInstance = new FPAnalysis();
     
     // Component state
-    const refreshCounter = ref(0);
+    const refreshLFs = ref(0);
     const lastUpdateTime = ref<string>('');
     const showDebugInfo = ref(false);
 
@@ -88,7 +90,7 @@ export default defineComponent({
     const handleLogicalFilesUpdate = (): void => {
       console.log('Logical files updated:', currentLogicalFiles.value);
       lastUpdateTime.value = new Date().toLocaleTimeString();
-      refreshCounter.value++;
+      refreshLFs.value++;
     };
 
     const toggleDebugInfo = (): void => {
@@ -141,7 +143,7 @@ export default defineComponent({
     return {
       // Core functionality
       fpaInstance,
-      refreshCounter,
+      refreshLFs,
       handleLogicalFilesUpdate,
       
       // Debug features

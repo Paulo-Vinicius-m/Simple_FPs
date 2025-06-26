@@ -1,5 +1,5 @@
 <script lang="ts">
-import { computed, defineComponent, onUpdated, ref } from 'vue';
+import { computed, defineComponent, onUpdated, ref, watch } from 'vue';
 import { FPAnalysis, EPType, LogicalFile } from '../assets/ts/FunctionPointAnalysis';
 
 export default defineComponent({
@@ -8,9 +8,15 @@ export default defineComponent({
         FPA: {
             type: FPAnalysis,
             required: true
+        },
+        triggerRefresh: {
+            type: Number,
+            required: true,
         }
     },
-    setup(props) {
+    emits: ['refreshEPs'],
+    
+    setup(props: { FPA: FPAnalysis; triggerRefresh: number }, { emit }) {
         // ==========================================
         // REACTIVE STATE
         // ==========================================
@@ -19,6 +25,15 @@ export default defineComponent({
         const newEPDescription = ref('');
         const newEPType = ref<EPType>(EPType.ExternalInput);
         const detInputs = ref<Record<string, { logicalFile: string; dataElement: string }>>({});
+
+        // ==========================================
+        // EVENT HANDLERS
+        // ==========================================
+
+        watch(() => props.triggerRefresh, () => {
+            // Trigger a re-computation when the refresh trigger changes
+            forceUpdate.value++;
+        });
 
         // ==========================================
         // COMPUTED PROPERTIES
@@ -31,6 +46,7 @@ export default defineComponent({
         });
 
         const logicalFiles = computed(() => {
+            forceUpdate.value;
             return props.FPA.getLFs();
         });
 
@@ -46,8 +62,13 @@ export default defineComponent({
         // METHODS
         // ==========================================
 
-        const triggerUpdate = () => {
+        /**
+         * Guarantees reactivity for updates to elementary processes.
+         * This function is called whenever an EP is added or removed.
+         */
+        const outdatedEPs = () => {
             forceUpdate.value++;
+            emit('refreshEPs');
         };
 
         const initializeDetInputs = () => {
@@ -63,14 +84,14 @@ export default defineComponent({
                 props.FPA.addEP(newEPDescription.value, newEPType.value, []);
                 newEPDescription.value = '';
                 newEPType.value = EPType.ExternalInput;
-                triggerUpdate();
+                outdatedEPs();
                 initializeDetInputs();
             }
         };
 
         const removeEP = (epId: string) => {
             props.FPA.removeEP(epId);
-            triggerUpdate();
+            outdatedEPs();
         };
 
         const addDET = (epId: string) => {
@@ -79,13 +100,13 @@ export default defineComponent({
                 props.FPA.addDETToEP(epId, { name: input.dataElement, logicalFileName: input.logicalFile });
                 // Reset input for that EP
                 detInputs.value[epId] = { logicalFile: '', dataElement: '' };
-                triggerUpdate();
+                outdatedEPs();
             }
         };
 
         const removeDET = (epId: string, lfName: string, deName: string) => {
             props.FPA.removeDETsFromEP(epId, lfName, deName);
-            triggerUpdate();
+            outdatedEPs();
         };
 
         onUpdated(() => {
