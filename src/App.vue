@@ -3,12 +3,16 @@
     <header class="app-header">
       <h1>Function Point Analysis Tool</h1>
       <p>Manage and analyze logical files for your software projects</p>
+      <button @click="loadSampleData" class="load-sample-data">
+        Load Sample Data
+      </button>
     </header>
 
     <main class="app-main">
       <!-- LogicalFiles Component Usage -->
       <LogicalFiles 
-        :FPA="fpaInstance" 
+        :FPA="fpaInstance"
+        :triggerRefresh="refreshLFs"
         @refreshLFs="handleLFsUpdate" 
       />
 
@@ -85,7 +89,7 @@ export default defineComponent({
 
     // Event handlers
     const handleLFsUpdate = (): void => {
-      console.log('Logical files updated:', currentLogicalFiles.value);
+      console.log('Logical files updated:', fpaInstance.getLFs());
       lastUpdateTime.value = new Date().toLocaleTimeString();
       refreshLFs.value++;
     };
@@ -103,24 +107,34 @@ export default defineComponent({
     // Sample data for testing (optional)
     const loadSampleData = (): void => {
       const sampleSQL = `
-        CREATE TABLE IF NOT EXISTS "Users" (
+        CREATE TABLE IF NOT EXISTS "Mensagem_Inicial" (
             "id" INTEGER NOT NULL UNIQUE,
-            "username" TEXT NOT NULL,
-            "email" TEXT NOT NULL,
-            "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
+            "Texto" TEXT,
             PRIMARY KEY("id")
-        );
-        
-        CREATE TABLE IF NOT EXISTS "Posts" (
+          );
+          CREATE TABLE IF NOT EXISTS "Categoria" (
             "id" INTEGER NOT NULL UNIQUE,
-            "user_id" INTEGER NOT NULL,
-            "title" TEXT NOT NULL,
-            "content" TEXT,
-            "published" BOOLEAN DEFAULT FALSE,
-            "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
+            "Nome_da_categoria" TEXT,
+            PRIMARY KEY("id")
+          );
+          CREATE TABLE IF NOT EXISTS "Mensagem_da_categoria" (
+            "id" INTEGER NOT NULL UNIQUE,
+            "ID_Categoria" INTEGER,
+            "Texto" TEXT,
+            "Resposta" TEXT,
             PRIMARY KEY("id"),
-            FOREIGN KEY("user_id") REFERENCES "Users"("id")
-        );
+            FOREIGN KEY ("id") REFERENCES "Categoria"("id")
+            ON UPDATE NO ACTION ON DELETE NO ACTION
+          );
+          CREATE TABLE IF NOT EXISTS "Acao" (
+            "id" INTEGER NOT NULL UNIQUE,
+            "tipo" TEXT,
+            "Valor" TEXT,
+            "Mensagem" INTEGER,
+            PRIMARY KEY("id"),
+            FOREIGN KEY ("Mensagem") REFERENCES "Mensagem_da_categoria"("id")
+            ON UPDATE NO ACTION ON DELETE NO ACTION
+          );
       `;
       
       fpaInstance.readSQL(sampleSQL);

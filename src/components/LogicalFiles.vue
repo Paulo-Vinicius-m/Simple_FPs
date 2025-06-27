@@ -38,7 +38,7 @@ export default defineComponent({
         }
     },
     emits: ['refreshLFs'],
-    
+
     setup(props: {FPA: FPAnalysis; triggerRefresh: number}, { emit }) {
         // ==========================================
         // REACTIVE STATE
@@ -280,7 +280,8 @@ export default defineComponent({
          * Triggers update when parent component requests refresh
          */
         watch(() => props.triggerRefresh, () => {
-            outdatedLFs();
+            forceUpdate.value++;
+            initializeDataElementInputs();
         });
 
         /**
@@ -353,7 +354,7 @@ export default defineComponent({
             <div v-else class="logical-files-grid">
                 <table 
                     v-for="lf in logicalFiles" 
-                    :key="lf.name" 
+                    :key="lf?.name" 
                     class="logical-file-table"
                 >
                     <!-- Table Header -->
