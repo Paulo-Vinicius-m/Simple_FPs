@@ -42,6 +42,8 @@
       <EndOfAnalysis 
         :FPA="fpaInstance" 
         :refreshTrigger="refreshLFs + refreshEPs"
+        @refreshLFs="handleLFsUpdate"
+        @refreshEPs="handleEPsUpdate"
       />
     </main>
 

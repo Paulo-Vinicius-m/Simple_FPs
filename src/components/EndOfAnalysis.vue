@@ -17,6 +17,7 @@ export default defineComponent({
             default: 0
         }
     },
+    emits: ['refreshLFs', 'refreshEPs'],
 
     setup(props, { emit }) {
         // ==========================================
@@ -73,6 +74,8 @@ export default defineComponent({
                         const data = JSON.parse(e.target?.result as string);
                         props.FPA.importFromJSON(data);
                         forceUpdate.value++;
+                        emit('refreshLFs');
+                        emit('refreshEPs');
                     } catch (error) {
                         console.error('Error importing JSON:', error);
                     }
