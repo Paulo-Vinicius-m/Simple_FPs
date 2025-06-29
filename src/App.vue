@@ -38,6 +38,11 @@
           </ul>
         </details>
       </section>
+
+      <EndOfAnalysis 
+        :FPA="fpaInstance" 
+        :refreshTrigger="refreshLFs + refreshEPs"
+      />
     </main>
 
     <footer class="app-footer">

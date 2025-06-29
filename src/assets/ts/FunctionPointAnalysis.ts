@@ -31,6 +31,42 @@ CREATE TABLE IF NOT EXISTS "Acao" (
 );
 `;
 
+function ILFContribution(complexity: string): number {
+    switch (complexity) {
+        case "Low": return 7;
+        case "Average": return 10;
+        case "High": return 15;
+        default: throw new Error(`Unknown complexity: ${complexity}`);
+    }
+}
+
+function EIFContribution(complexity: string): number {
+    switch (complexity) {
+        case "Low": return 5;
+        case "Average": return 7;
+        case "High": return 10;
+        default: throw new Error(`Unknown complexity: ${complexity}`);
+    }
+}
+
+function EIandEOContribution(complexity: string): number {
+    switch (complexity) {
+        case "Low": return 3;
+        case "Average": return 4;
+        case "High": return 6;
+        default: throw new Error(`Unknown complexity: ${complexity}`);
+    }
+}
+
+function EQContribution(complexity: string): number {
+    switch (complexity) {
+        case "Low": return 4;
+        case "Average": return 5;
+        case "High": return 7;
+        default: throw new Error(`Unknown complexity: ${complexity}`);
+    }
+}
+
 export enum EPType {
     ExternalInput = "EI",
     ExternalOutput = "EO",
@@ -55,6 +91,7 @@ export interface LogicalFile{
     parentName?: string; // if it is a Record Element Type (RET), it needs to have a parent Logical File
     dataElements: DataElement[];
     description?: string;
+    FPs?: number; // Optional: to store the Function Points (FPs) for the Logical File
 }
 
 export interface ElementaryProcess {
@@ -62,6 +99,7 @@ export interface ElementaryProcess {
     description: string;
     type: EPType;
     dataElements: {name: string, logicalFileName: string}[];
+    FPs?: number; // Optional: to store the Function Points (FPs) for the Elementary Process
 }
 
 // Regex para capturar tabelas
@@ -322,7 +360,112 @@ export class FPAnalysis{
         ep.dataElements.push(dataElement);
     }
 
-    /*
-    public evaluateFPs(){};
-    */
+    /**
+     * Evaluates the Function Points (FPs) based on the current Logical Files and Elementary Processes.
+     */
+    public evaluateFPs(): void {
+        // Reset FPs for all Logical Files and Elementary Processes
+        this.logicalFiles.forEach(lf => lf.FPs = 0);
+        this.elementaryProcesses.forEach(ep => ep.FPs = 0);
+
+        // Calculate FPs for Logical Files
+        this.logicalFiles.forEach(lf => {
+            if (lf.type === LFType.RecordElementType) {
+                return; // Skip Record Element Types (RET) for FP calculation
+            }
+            
+            let nRETs = 1; // Count the Logical File itself as one RET
+            let RETsDTs = 0;
+            let complexity = "Low";
+
+            this.logicalFiles.forEach(otherLF => {
+                if (otherLF.type === LFType.RecordElementType && otherLF.parentName === lf.name) {
+                    nRETs++;
+                    RETsDTs += otherLF.dataElements.length;
+                }
+            });
+
+            if (nRETs === 1) {
+                complexity = lf.dataElements.length + RETsDTs < 50 ? "Low" : "Average" ;
+            } else if (nRETs <= 5) {
+                complexity = lf.dataElements.length + RETsDTs < 20 ? "Low" : "Average" ;
+                complexity = lf.dataElements.length + RETsDTs < 50 ? complexity : "High" ;
+            } else{
+                complexity = lf.dataElements.length + RETsDTs < 50 ? "Average" : "High";
+            }
+
+            lf.FPs = lf.type === LFType.InternalLogicalFile ? ILFContribution(complexity) : EIFContribution(complexity);
+        });
+
+        // Calculate FPs for Elementary Processes
+        this.elementaryProcesses.forEach(ep => {
+            // Initialize the complexity of the EP
+            let complexity = "Low";
+            // Calculates the number of Logical Files (LFs) referenced by the Elementary Process (EP)
+            const nLFs = new Set(ep.dataElements.map(de => de.logicalFileName)).size;
+            // Calculates the number of Data Element Types (DETs) referenced by the Elementary Process (EP)
+            const nDETs = ep.dataElements.length;
+
+            if (ep.type === EPType.ExternalInput) {
+                if (nLFs === 1) {
+                    complexity = nDETs < 5 ? "Low" : "Average";
+                } else if (nLFs === 2) {
+                    complexity = nDETs < 5 ? "Low" : nDETs < 15 ? "Average" : "High";
+                } else {
+                    complexity = nDETs < 15 ? "Average" : "High";
+                }
+
+            } else {
+                if (nLFs === 1) {
+                    complexity = nDETs < 20 ? "Low" : "Average";
+                } else if (nLFs === 2) {
+                    complexity = nDETs < 7 ? "Low" : nDETs < 20 ? "Average" : "High";
+                } else {
+                    complexity = nDETs < 20 ? "Average" : "High";
+                }
+            }
+
+            ep.FPs = ep.type === EPType.ExternalInquiry ? EQContribution(complexity) : EIandEOContribution(complexity);
+        });
+    }
+
+/**
+     * Retrieves the total Function Points (FPs) from Logical Files and Elementary Processes.
+     * @returns The total Function Points (FPs).
+     */
+    public getTotalFPs(): number {
+        // Calculate the total Function Points (FPs) from Logical Files and Elementary Processes
+        const totalLFsFPs = this.logicalFiles.reduce((sum, lf) => sum + (lf.FPs || 0), 0);
+        const totalEPsFPs = this.elementaryProcesses.reduce((sum, ep) => sum + (ep.FPs || 0), 0);
+        return totalLFsFPs + totalEPsFPs;
+    }
+
+    /**
+     * Goes through all Logical Files (LFs) and optimizes them based on predefined criteria.
+     * This method is important for maintaining the efficiency and accuracy of the Function Point Analysis, removing unnecessary redundant or incomplete Logical Files.
+     * 
+     * Optimization is based on the following criteria:
+     * 1. If a Logical File (LF) has no attributes, it is removed
+     * 2. If a Logical File (LF) has no associated Elementary Processes (EPs), it is removed
+     * 3. If a Logical File (LF) is a Record Element Type (RET) and has no parent Logical File, it is removed
+     * 4. If a Logical File (LF) is based on a Weak Entity, it becomes a Record Element Type (RET) and is associated with its parent Logical File
+     * 5. If two Logical Files (LFs) have a 1:1 relationship and are involved in the same Elementary Processes (EP) as one another, they are merged into a single Logical File (LF) with the attributes of both Logical Files (LFs)
+     * 5. If two 
+     */
+    public optimizeLFs(): void {
+        return;
+    }
+
+    public exportAsJSON(): JSON {
+        return JSON.parse(JSON.stringify({
+            logicalFiles: this.logicalFiles,
+            elementaryProcesses: this.elementaryProcesses
+        }));
+    }
+
+    public importFromJSON(data: JSON): void {
+        const parsedData = JSON.parse(JSON.stringify(data));
+        this.logicalFiles = parsedData.logicalFiles || [];
+        this.elementaryProcesses = parsedData.elementaryProcesses || [];
+    }
 }
